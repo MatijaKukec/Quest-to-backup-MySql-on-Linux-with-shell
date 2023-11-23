@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # Ime baze
-# Zamjeniti s imenom baze
-database_name="---"
+MYSQL_USER="root"
+MYSQL_PASSWORD="AAAAAAA"
+DATABASE_NAME="Baza_Podataka"
 
 cd "$(dirname -- "$0")"
 
@@ -11,37 +12,42 @@ function log_message() {
 	log_timestamp=$(date +"%Y-%m-%d %H:%M:%S")
 
 	# Log the message with timestamp to blah.log
-	echo "$log_timestamp		 $1" | tee -a history.log
+	echo "$log_timestamp		 $1" | tee -a blah.log
 }
 
 function backup_database() {
+	# Provjeri da li postoje alati za napraviti backup i kompresiju
+	command -v mysqldump >/dev/null 2>&1 || { log_message "Error: mysqldump not found. Install MySQL client."; exit 1; }
+	command -v gzip >/dev/null 2>&1 || { log_message "Error: gzip not found. Install gzip."; exit 1; }
+	
 	# Trenutno vrijeme
 	date_time=$(date +"%d-%m-%y_%H:%M:%S")
 	log_message "$date_time"
 	# Ime baze
-	database_name="$1"
+	DATABASE_NAME="$1"
 	time="$2"
 
 	# Trenutno vrijeme
 	date_time=$(date +"%d-%m-%y_%H:%M:%S")
 
 	# Naziv datoteke backup-a
-	backup_file_name="${database_name}_${time}d_${date_time}.sql"
+	backup_file_name="${DATABASE_NAME}_${time}d_${date_time}.sql"
 
 	log_message "Creating backup $backup_file_name"
 	# Backup baze
-  # zamjeniti AAAAAAA s lozinkom baze
-	mysqldump -u root -pAAAAAAA "${database_name}" > "${backup_file_name}"
+
+	mysqldump -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" "${database_name}" > "${backup_file_name}" || { log_message "Error: mysqldump command failed"; exit 1; }
 	# Create a tarball of the backup file
 	# Kompresija
-	gzip "${backup_file_name}"
+	
+	gzip "${backup_file_name}" || { log_message "Error: gzip compression failed"; exit 1; }
 
 	log_message "Created gzip: ${backup_file_name}.gz"
 }
 
 for i in 1 7 30; do
 	# Construct the file name pattern
-	file_pattern="${database_name}_${i}"
+	file_pattern="${DATABASE_NAME}_${i}"
 
 	found=0
 
@@ -58,7 +64,7 @@ for i in 1 7 30; do
 				log_message "Removing..."
 				rm "$file"*
 				log_message "Creating backup..."
-				backup_database "$database_name" "$i"
+				backup_database "$DATABASE_NAME" "$i"
 			elif [ "$age" -lt "$i" ]; then
 				found=1
 				log_message "Found and younger than $age days: $file"
@@ -69,7 +75,7 @@ for i in 1 7 30; do
 	if [ "$found" -eq 0 ]; then
 		log_message "Not found: ${file_pattern}*"
 		log_message "Creating backup..."
-		backup_database "$database_name" "$i"
+		backup_database "$DATABASE_NAME" "$i"
 	fi
 done
 
