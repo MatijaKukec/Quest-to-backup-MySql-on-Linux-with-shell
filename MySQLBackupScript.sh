@@ -1,18 +1,19 @@
 #!/bin/bash
 
-# Ime baze
+# podaci o bazi
 MYSQL_USER="root"
 MYSQL_PASSWORD="AAAAAAA"
 DATABASE_NAME="Baza_Podataka"
 
 cd "$(dirname -- "$0")"
 
+# Funkcija za logiranje
 function log_message() {
 	# Get the current date and time
 	log_timestamp=$(date +"%Y-%m-%d %H:%M:%S")
 
 	# Log the message with timestamp to blah.log
-	echo "$log_timestamp		 $1" | tee -a blah.log
+	echo "$log_timestamp		 $1" | tee -a History.log
 }
 
 function backup_database() {
@@ -37,7 +38,7 @@ function backup_database() {
 	# Backup baze
 
 	mysqldump -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" "${database_name}" > "${backup_file_name}" || { log_message "Error: mysqldump command failed"; exit 1; }
-	# Create a tarball of the backup file
+
 	# Kompresija
 	
 	gzip "${backup_file_name}" || { log_message "Error: gzip compression failed"; exit 1; }
@@ -46,17 +47,17 @@ function backup_database() {
 }
 
 for i in 1 7 30; do
-	# Construct the file name pattern
+	# stvori naziv za datoteku
 	file_pattern="${DATABASE_NAME}_${i}"
 
 	found=0
 
-	# Check if a file starting with the pattern exists
+	# provjeri da li datoteka postoji
 	for file in "${file_pattern}"*; do
 		if [ -f "$file" ]; then
 			file_mod_time=$(stat -c %Y "$file")
 			current_time=$(date +%s)
-			age=$(( (current_time - file_mod_time) / 60 / 60 / 24 ))  # Calculate age in days
+			age=$(( (current_time - file_mod_time) / 60 / 60 / 24 ))  # Izračun u danima
 
 			if [ "$age" -gt "$i" ]; then
 				found=1
